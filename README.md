@@ -2,7 +2,7 @@
 
 # docs-subagents
 
-**7 pinned AI agents that keep your docs in sync with your code — automatically.**
+**11 pinned AI agents that keep your docs in sync with your code, bootstrap new docs from a URL, and run a recurring analytics pipeline that produces machine-readable insight reports.**
 
 [![npm version](https://badge.fury.io/js/docs-subagents.svg)](https://www.npmjs.com/package/docs-subagents)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
@@ -26,10 +26,11 @@ The result: outdated docs that erode user trust and waste support time.
 
 ## The Solution
 
-`docs-subagents` ships **7 purpose-built AI agents** organized into two pipelines:
+`docs-subagents` ships **11 purpose-built AI agents** organized into three pipelines:
 
 - **Drift-detection pipeline** — watches your `git diff`, finds affected doc pages, patches them in an isolated worktree, and produces a conflict-free commit.
 - **Workspace creation pipeline** — crawls your product site, publishes a GitHub repo, and configures a [Docsbook](https://docsbook.io) workspace — fully branded and AI-ready.
+- **Insights pipeline** — pulls analytics from the Docsbook MCP on a schedule, clusters the signal, and writes schema-validated JSON reports that downstream actor agents consume to drive PRs, Issues, or AI-chat tuning.
 
 Each agent is pinned to the right model for its job (Haiku for fast lookup, Sonnet for editing) and carries an explicit tool allowlist. No surprises, no scope creep.
 
@@ -65,8 +66,29 @@ These two packages live side by side — they solve different problems.
 | I want… | Use |
 |---|---|
 | Full pre-push drift workflow, one command, no manual wiring | [docs-claude-plugins](https://github.com/Docsbook-io/docs-claude-plugins) |
+| Recurring analytics with schedule + Slack notifications, one setup wizard | [docs-claude-plugins](https://github.com/Docsbook-io/docs-claude-plugins) (`docs-insights` plugin) |
 | Just the subagent files, manual invocation or custom pipeline | **docs-subagents** (this package) |
 | Agents for Cursor / Codex / Copilot (not Claude Code) | **docs-subagents** — the plugin is Claude Code only |
+
+### Standalone vs plugin versions
+
+The same subagent name (e.g. `docs-planner`, `analytics-collector`) ships **both** here as a standalone `.md` file and inside the matching plugin in [docs-claude-plugins](https://github.com/Docsbook-io/docs-claude-plugins). The two versions are **intentionally not byte-identical**:
+
+|  | Standalone (this package) | Plugin version |
+|---|---|---|
+| **Audience** | Users who invoke agents manually or build their own orchestrator | Users running the plugin's bundled commands (`/docs-sync`, `/docs-insights`, …) |
+| **Prompt scope** | Minimal — no references to plugin commands or config files | Richer — may reference `.docsbook/insights/.config.json`, `/docs-insights-setup`, plugin-bundled MCP |
+| **Modes** | Single primary mode (the most common one) | May ship extra modes (e.g. `docs-planner` plugin version has both diff mode and intent mode) |
+| **Stability** | Treat the input/output contract as a stable API | Evolves with the plugin's feature surface |
+| **Release cadence** | npm `docs-subagents` package | Plugin version in `docs-claude-plugins` |
+
+What is **always shared** between the two versions of the same subagent:
+
+- The agent `name` in the YAML frontmatter.
+- The first-line output contract (e.g. `WROTE: <path>`, `CLUSTERED: <path>`, `REPORT_JSON: <path>`).
+- The slice / mode vocabulary (e.g. `utm`, `engagement`, `funnel`, …).
+
+This lets you swap one for the other within a pipeline without breaking anything. If both end up in `.claude/agents/` (e.g. you ran both `/plugin install` and `npx docs-subagents install`), the second install will back up the first — keep the version that matches how you actually invoke them.
 
 ---
 
@@ -86,13 +108,17 @@ After install, restart is **not** required — `/agents` in Claude Code lists al
 
 ```
 .claude/agents/
-├── docs-planner.md                   (Haiku)
+├── docs-planner.md                   (Haiku)   — drift pipeline
 ├── docs-searcher.md                  (Haiku)
 ├── docs-editor.md                    (Sonnet)
 ├── docs-curator.md                   (Sonnet)
-├── docs-site-crawler.md              (Haiku)
+├── docs-site-crawler.md              (Haiku)   — workspace creation
 ├── docs-publisher.md                 (Haiku)
-└── docs-workspace-configurator.md    (Sonnet)
+├── docs-workspace-configurator.md    (Sonnet)
+├── analytics-collector.md            (Haiku)   — insights pipeline
+├── analytics-clusterer.md            (Sonnet)
+├── analytics-reporter.md             (Sonnet)
+└── insights-archivist.md             (Haiku)
 ```
 
 Existing files are backed up to `<name>.md.bak` unless you pass `--force`.
@@ -145,6 +171,30 @@ docs-publisher (Haiku)              — git init + gh repo create + push
    ▼
 docs-workspace-configurator (Sonnet) — branding, SEO, AI via Docsbook MCP
 ```
+
+### Pipeline 3 — Insights (recurring analytics)
+
+Pulls Docsbook analytics on a schedule, clusters signal, writes machine-readable JSON reports.
+
+```
+schedule fires (cron or Claude Code Routine)
+   │
+   ▼
+analytics-collector (Haiku)         — pull one MCP slice (utm/engagement/funnel/cohort/link_clicks/questions/traffic_anomaly)
+   │
+   ▼
+analytics-clusterer (Sonnet)        — group, normalize, period-over-period delta, anomaly flags
+   │
+   ▼
+analytics-reporter (Sonnet)         — emit schema-validated JSON + human Markdown, update latest/ symlinks
+   │
+   ▼
+insights-archivist (Haiku)          — diff vs previous run, build index.json, rotate old reports
+```
+
+Output lands under `.docsbook/insights/`. Every JSON validates against [`insight.schema.json`](https://github.com/Docsbook-io/docs-claude-plugins/blob/main/plugins/docs-insights/schemas/insight.schema.json) — the stable contract between analyzer agents and the future actor layer that will turn findings into PRs, Issues, and AI-chat updates.
+
+For one-command setup (workspace picker, OAuth, schedule, Slack notifications), use the [`docs-insights` plugin](https://github.com/Docsbook-io/docs-claude-plugins) — it ships the same four subagents plus a `/docs-insights-setup` wizard and individual shortcut commands.
 
 ---
 
@@ -232,6 +282,47 @@ Configures branding, UI, AI settings, and SEO via the Docsbook MCP. Stage 3 of w
 
 ---
 
+### Insights pipeline
+
+#### `analytics-collector` — Haiku
+
+Pulls a **specific slice** of analytics from the Docsbook MCP (`utm`, `engagement`, `funnel`, `cohort`, `link_clicks`, `questions`, `traffic_anomaly`) and writes the raw rows as JSON for the downstream agent. Does not reason, does not summarize. Cheap fan-out step.
+
+- **Tools:** `Bash`, `Read`, `Write`, every `mcp__docsbook__get_*` analytics tool, `mcp__docsbook__query_events`
+- **Input:** `SLICE`, `WORKSPACE`, `PERIOD`, `OUTPUT` lines in the prompt
+- **Output:** writes a dump file, prints `WROTE: <path>`
+
+---
+
+#### `analytics-clusterer` — Sonnet
+
+Reads the collector dump, groups rows by the slice-specific dimension, computes period-over-period deltas, and flags anomalies. Pure reasoning — no MCP calls. Produces an intermediate clustered file for the reporter.
+
+- **Tools:** `Read`, `Write`, `Bash`
+- **Output:** writes a clustered intermediate, prints `CLUSTERED: <path>`
+
+---
+
+#### `analytics-reporter` — Sonnet
+
+Turns the clusterer's output into the final **schema-validated JSON report** (`insight.schema.json`, `schema_version: 1`) plus a human-readable Markdown sibling. Updates the `.docsbook/insights/latest/` symlinks. Validates the JSON before writing.
+
+- **Tools:** `Read`, `Write`, `Bash`
+- **Output:** writes JSON + MD, prints `REPORT_JSON:` and `REPORT_MD:` paths
+
+---
+
+#### `insights-archivist` — Haiku
+
+Maintains the `.docsbook/insights/` folder: builds `index.json`, computes a `*.diff.json` against the previous run from the same skill (`new` / `resolved` / `changed` / `stable`), rotates reports past the retention policy.
+
+- **Tools:** `Read`, `Write`, `Bash`, `Glob`
+- **Output:** writes index + diff, prints `INDEX:`, `DIFF:`, `ROTATED:`
+
+The diff is what makes the pipeline cron-friendly: a downstream actor agent typically only acts on **new** and **changed** findings, ignoring **stable** ones it has already addressed.
+
+---
+
 ## Adding the Missing Pieces by Hand
 
 If you want the standalone subagents to behave like the full plugin, add these three things manually.
@@ -285,6 +376,7 @@ Create `.docs-sync.json` at the repo root if your orchestrator reads it:
 
 ```bash
 rm .claude/agents/docs-{planner,searcher,editor,curator,site-crawler,publisher,workspace-configurator}.md
+rm .claude/agents/{analytics-collector,analytics-clusterer,analytics-reporter,insights-archivist}.md
 ```
 
 Restore backups if you did not use `--force`:
