@@ -1,6 +1,8 @@
 # docs-subagents
 
-> Standalone Claude Code subagents for documentation work — planner, searcher, editor, curator, crawler, publisher, workspace configurator.
+> The home for all documentation automation workflows — drift detection, sync, PR checks, translation, release announcements, and more.
+
+**docs-subagents is the single place for documentation automation.** Automation workflows have moved from `docs-skills` to this package. If you were using `/docs-sync`, `/docs-pr-check`, `/docs-enable-translation`, `/docs-tune-ai-chat`, `/docs-release-announce`, `/docs-stale-watcher`, or `/docs-translate-webhook` skills — use subagents instead.
 
 This package is the **subagent layer only**. It does not register MCP servers and does not install git hooks. If you want the full pre-push `docs-sync` workflow with one command, use the [docs-claude-plugins](https://github.com/Docsbook-io/docs-claude-plugins) plugin instead — it bundles these same subagents with the MCP server and the hook installer.
 
@@ -125,6 +127,16 @@ Create `.docs-sync.json` at the repo root if your orchestrator reads it:
 ---
 
 ## Subagent reference
+
+Subagents are organized into two groups:
+
+**Drift-detection pipeline** (code↔docs sync):
+`docs-planner` → `docs-searcher` → `docs-editor` → `docs-curator`
+
+**Workspace creation pipeline** (create docs from scratch):
+`docs-site-crawler` → `docs-publisher` → `docs-workspace-configurator`
+
+---
 
 ### `docs-planner` — Haiku
 
