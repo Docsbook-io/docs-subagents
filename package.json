@@ -1,0 +1,28 @@
+{
+  "name": "docs-subagents",
+  "version": "0.1.0",
+  "description": "4 Claude Code subagents for code↔docs drift detection: planner (Haiku), searcher (Haiku), editor (Sonnet), curator (Sonnet). Used by the docs-sync workflow.",
+  "type": "module",
+  "bin": {
+    "docs-subagents": "./bin/docs-subagents.mjs"
+  },
+  "scripts": {
+    "test": "node --test test/"
+  },
+  "files": [
+    "agents/",
+    "bin/",
+    "install.mjs",
+    "README.md",
+    "LICENSE"
+  ],
+  "keywords": ["claude-code", "subagents", "docs", "drift", "markdown", "documentation", "ai", "agents"],
+  "author": "Dan Bondarev",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/Docsbook-io/docs-subagents.git"
+  },
+  "homepage": "https://docsbook.io",
+  "engines": { "node": ">=20" }
+}
