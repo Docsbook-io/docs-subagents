@@ -1,6 +1,6 @@
 {
   "name": "docs-subagents",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "description": "4 Claude Code subagents for code↔docs drift detection: planner (Haiku), searcher (Haiku), editor (Sonnet), curator (Sonnet). Used by the docs-sync workflow.",
   "type": "module",
   "bin": {

@@ -1,49 +1,72 @@
+<div align="center">
+
 # docs-subagents
 
-> The home for all documentation automation workflows — drift detection, sync, PR checks, translation, release announcements, and more.
+**7 pinned AI agents that keep your docs in sync with your code — automatically.**
 
-**docs-subagents is the single place for documentation automation.** Automation workflows have moved from `docs-skills` to this package. If you were using `/docs-sync`, `/docs-pr-check`, `/docs-enable-translation`, `/docs-tune-ai-chat`, `/docs-release-announce`, `/docs-stale-watcher`, or `/docs-translate-webhook` skills — use subagents instead.
+[![npm version](https://badge.fury.io/js/docs-subagents.svg)](https://www.npmjs.com/package/docs-subagents)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+[![Docsbook](https://img.shields.io/badge/Powered%20by-Docsbook-blue.svg)](https://docsbook.io)
 
-This package is the **subagent layer only**. It does not register MCP servers and does not install git hooks. If you want the full pre-push `docs-sync` workflow with one command, use the [docs-claude-plugins](https://github.com/Docsbook-io/docs-claude-plugins) plugin instead — it bundles these same subagents with the MCP server and the hook installer.
+[Installation](#install) • [Pipelines](#pipelines) • [Agent Reference](#agent-reference) • [Manual Wiring](#adding-the-missing-pieces-by-hand) • [vs docs-skills](#subagent-vs-skill)
+
+</div>
 
 ---
 
-## When to use which
+## The Problem
 
-| You want… | Use |
+> "I pushed a refactored auth module. Three weeks later, a user filed a bug: the docs still showed the old API. The code and docs had drifted — silently."
+
+Documentation rot is inevitable when code and docs live in separate mental contexts. No one remembers to update the `rate-limit.md` after refactoring the rate limiter. No one re-reads every doc after a big merge.
+
+The result: outdated docs that erode user trust and waste support time.
+
+---
+
+## The Solution
+
+`docs-subagents` ships **7 purpose-built AI agents** organized into two pipelines:
+
+- **Drift-detection pipeline** — watches your `git diff`, finds affected doc pages, patches them in an isolated worktree, and produces a conflict-free commit.
+- **Workspace creation pipeline** — crawls your product site, publishes a GitHub repo, and configures a [Docsbook](https://docsbook.io) workspace — fully branded and AI-ready.
+
+Each agent is pinned to the right model for its job (Haiku for fast lookup, Sonnet for editing) and carries an explicit tool allowlist. No surprises, no scope creep.
+
+---
+
+## Features
+
+✅ **Model pinning** — Haiku for cheap fan-out, Sonnet for editing; costs stay predictable  
+✅ **Isolated edits** — `docs-editor` works in a fresh `git worktree`, never touches your working tree  
+✅ **Conflict resolution** — `docs-curator` merges parallel patches and drops speculative changes  
+✅ **MCP-powered search** — `docs-searcher` uses `doc_search_*` LSP tools when `markdown-lsp` is present  
+✅ **Graceful fallback** — works without MCP (falls back to `Grep`/`Read`), just with lower recall  
+✅ **Multi-editor support** — install for Claude Code, Cursor, Codex, or Copilot  
+✅ **Global or per-project** — `--global` puts agents in `~/.claude/agents/` for every project  
+
+---
+
+## Subagent vs Skill
+
+These two packages live side by side — they solve different problems.
+
+| Concept | Analogy | Lives in | Reusable? |
+|---|---|---|---|
+| **Skill** | QA Checklist — describes workflow & guardrails | [docs-skills](https://github.com/Docsbook-io/docs-skills) | Yes — any project |
+| **Subagent** | Jira ticket — concrete model, pinned tools, one goal | this package | No — runs and done |
+
+**Rule of thumb:** "Would I want this in another project tomorrow?" → Yes = skill. No = subagent.
+
+---
+
+## When to Use Which
+
+| I want… | Use |
 |---|---|
-| The full pre-push drift workflow, no manual wiring | [docs-claude-plugins](https://github.com/Docsbook-io/docs-claude-plugins) (`/plugin install docs-sync@…`) |
-| Just the subagent files, to invoke them by hand or wire your own pipeline | This package (`npx docs-subagents install`) |
-| Subagents for Cursor / Codex / Copilot | This package — the plugin is Claude Code only |
-
----
-
-## What this package installs
-
-`npx docs-subagents install` copies 7 subagent files into `.claude/agents/` of the current project:
-
-```
-.claude/agents/
-├── docs-planner.md             (Haiku)
-├── docs-searcher.md            (Haiku)
-├── docs-editor.md              (Sonnet)
-├── docs-curator.md             (Sonnet)
-├── docs-site-crawler.md        (Haiku)
-├── docs-publisher.md           (Haiku)
-└── docs-workspace-configurator.md (Sonnet)
-```
-
-Each file has a YAML frontmatter that pins its model and tool list. Existing files are backed up to `<name>.md.bak` unless you pass `--force`.
-
-`--global` writes to `~/.claude/agents/` instead, making the subagents available in every project.
-
-### What it does NOT install
-
-- **No MCP server.** `docs-searcher` calls `doc_search_text`, `doc_search_fuzzy`, `doc_outline` — these come from the `markdown-lsp` MCP. Without it, `docs-searcher` falls back to plain `Grep`/`Read` and finds far fewer drifted pages.
-- **No git hook.** Subagents only run when you invoke them. There is no automatic pre-push trigger.
-- **No orchestrator command.** There is no `/docs-sync` slash command in this package — you invoke each subagent manually, or chain them in your own script.
-
-If any of those matter, install the plugin instead.
+| Full pre-push drift workflow, one command, no manual wiring | [docs-claude-plugins](https://github.com/Docsbook-io/docs-claude-plugins) |
+| Just the subagent files, manual invocation or custom pipeline | **docs-subagents** (this package) |
+| Agents for Cursor / Codex / Copilot (not Claude Code) | **docs-subagents** — the plugin is Claude Code only |
 
 ---
 
@@ -57,11 +80,75 @@ npx docs-subagents install --force      # overwrite without backup
 npx docs-subagents list                 # print bundled agent names
 ```
 
-After install, restart `claude` is **not** required — `/agents` should list all 7 immediately.
+After install, restart is **not** required — `/agents` in Claude Code lists all 7 immediately.
+
+### What gets installed
+
+```
+.claude/agents/
+├── docs-planner.md                   (Haiku)
+├── docs-searcher.md                  (Haiku)
+├── docs-editor.md                    (Sonnet)
+├── docs-curator.md                   (Sonnet)
+├── docs-site-crawler.md              (Haiku)
+├── docs-publisher.md                 (Haiku)
+└── docs-workspace-configurator.md    (Sonnet)
+```
+
+Existing files are backed up to `<name>.md.bak` unless you pass `--force`.
+
+### What does NOT get installed
+
+| Missing piece | Why | How to add |
+|---|---|---|
+| MCP server | `docs-searcher` needs `markdown-lsp` for LSP-quality search | [Add manually](#1-register-markdown-lsp-mcp) |
+| Pre-push git hook | Subagents only run when invoked | [Wire manually](#2-wire-a-pre-push-hook-optional) |
+| `/docs-sync` command | No orchestrator slash command in this package | Use [docs-claude-plugins](https://github.com/Docsbook-io/docs-claude-plugins) |
 
 ---
 
-## Use
+## Pipelines
+
+### Pipeline 1 — Drift Detection (code ↔ docs sync)
+
+Keeps your docs from going stale after every code change.
+
+```
+git diff
+   │
+   ▼
+docs-planner (Haiku)          — clusters the diff into named topics
+   │
+   ▼ (parallel fan-out per cluster)
+docs-searcher (Haiku)         — finds drifted doc pages via MCP
+   │
+   ▼
+docs-editor (Sonnet)          — patches each page in an isolated worktree
+   │
+   ▼
+docs-curator (Sonnet)         — merges patches, resolves conflicts, writes commit
+```
+
+### Pipeline 2 — Workspace Creation
+
+Creates a full Docsbook documentation site from scratch.
+
+```
+product URL
+   │
+   ▼
+docs-site-crawler (Haiku)           — crawls site → Markdown + _branding.json
+   │
+   ▼
+docs-publisher (Haiku)              — git init + gh repo create + push
+   │
+   ▼
+docs-workspace-configurator (Sonnet) — branding, SEO, AI via Docsbook MCP
+```
+
+---
+
+## Usage
 
 In Claude Code:
 
@@ -70,20 +157,88 @@ In Claude Code:
 ✓ docs-planner, docs-searcher, docs-editor, docs-curator,
   docs-site-crawler, docs-publisher, docs-workspace-configurator
 
-> Use the docs-planner agent to cluster this diff: <paste>
+> Use the docs-planner agent to cluster this diff: <paste diff>
 ```
 
-The model is pinned in each subagent's frontmatter — invoking `docs-planner` always runs on Haiku, `docs-editor` always on Sonnet, regardless of the parent session.
+The model is pinned in each agent's frontmatter — invoking `docs-planner` always runs on Haiku, `docs-editor` always on Sonnet, regardless of the parent session model.
 
 ---
 
-## Adding the missing pieces by hand
+## Agent Reference
 
-If you want the standalone subagents to behave like the plugin, you need three more things.
+### Drift-detection pipeline
+
+#### `docs-planner` — Haiku
+
+Reads a raw `git diff` and groups changed symbols/files into named thematic clusters (e.g. `auth refactor`, `rate-limit API`). The fan-out step so downstream agents each handle one coherent topic.
+
+- **Tools:** none (pure reasoning)
+- **Input:** raw `git diff`
+- **Output:** `[{ cluster, files, summary }]`
+
+---
+
+#### `docs-searcher` — Haiku
+
+Takes one cluster from `docs-planner`. Searches `docs/` via MCP `doc_search_*` to find pages likely affected. Returns ranked paths with confidence scores.
+
+- **Tools:** `doc_search_text`, `doc_search_fuzzy`, `doc_outline` (requires `markdown-lsp` MCP)
+- **Output:** `[{ path, reason, confidence }]`
+- **Without MCP:** falls back to `Grep`/`Read`, lower recall
+
+---
+
+#### `docs-editor` — Sonnet
+
+Takes drifted file paths + the original diff. Checks out a fresh `git worktree`, edits each `.md` to remove direct contradictions with the diff. Does not speculate — only fixes what the diff proves is wrong.
+
+- **Tools:** `Read`, `Edit`, `Bash` (git worktree)
+- **Output:** unified diff
+
+---
+
+#### `docs-curator` — Sonnet
+
+Receives all patches from parallel `docs-editor` runs. Resolves line conflicts, drops speculative or duplicate changes, produces a single commit-ready patch.
+
+- **Tools:** `Read`, `Edit`, `Bash`
+- **Output:** final unified diff + suggested commit message
+
+---
+
+### Workspace creation pipeline
+
+#### `docs-site-crawler` — Haiku
+
+Crawls a product URL into Markdown plus a `_branding.json` file (colors, logo, name). Stage 1 of workspace creation.
+
+- **Tools:** `Read`, `Write`, `Bash`, `WebFetch`
+
+---
+
+#### `docs-publisher` — Haiku
+
+`git init` + `gh repo create` + push over HTTPS. Stage 2 of workspace creation.
+
+- **Tools:** `Bash`, `Read`
+
+---
+
+#### `docs-workspace-configurator` — Sonnet
+
+Configures branding, UI, AI settings, and SEO via the Docsbook MCP. Stage 3 of workspace creation. Requires the `docsbook` MCP (HTTP, OAuth on first call).
+
+- **Tools:** `Read` + Docsbook MCP tools
+
+---
+
+## Adding the Missing Pieces by Hand
+
+If you want the standalone subagents to behave like the full plugin, add these three things manually.
 
 ### 1. Register `markdown-lsp` MCP
 
-Add to `.mcp.json` at the repo root:
+Add to `.mcp.json` at your repo root:
 
 ```json
 {
@@ -98,7 +253,7 @@ Add to `.mcp.json` at the repo root:
 
 Restart Claude Code. `docs-searcher` will now use `doc_search_*` tools instead of falling back to `Grep`.
 
-### 2. Wire a pre-push hook (optional)
+### 2. Wire a Pre-push Hook (optional)
 
 Drop this into `.git/hooks/pre-push` and `chmod +x`:
 
@@ -109,9 +264,9 @@ set -e
 claude --print --dangerously-skip-permissions /docs-sync || true
 ```
 
-Note: this needs a `/docs-sync` command — which this package does not ship. Either write your own orchestrator slash command, or use the plugin which includes one ([commands/docs-sync.md](https://github.com/Docsbook-io/docs-claude-plugins/blob/main/plugins/docs-sync/commands/docs-sync.md)).
+> Note: this requires a `/docs-sync` slash command, which this package does not ship. Either write your own orchestrator, or use [docs-claude-plugins](https://github.com/Docsbook-io/docs-claude-plugins) which includes one.
 
-### 3. Optional config
+### 3. Optional Config
 
 Create `.docs-sync.json` at the repo root if your orchestrator reads it:
 
@@ -126,76 +281,13 @@ Create `.docs-sync.json` at the repo root if your orchestrator reads it:
 
 ---
 
-## Subagent reference
-
-Subagents are organized into two groups:
-
-**Drift-detection pipeline** (code↔docs sync):
-`docs-planner` → `docs-searcher` → `docs-editor` → `docs-curator`
-
-**Workspace creation pipeline** (create docs from scratch):
-`docs-site-crawler` → `docs-publisher` → `docs-workspace-configurator`
-
----
-
-### `docs-planner` — Haiku
-
-Reads a raw `git diff` and groups changed symbols/files into named thematic clusters (e.g. `auth refactor`, `rate-limit API`). The fan-out step so downstream agents each handle one coherent topic.
-
-- **Tools:** none (pure reasoning)
-- **Returns:** `[{ cluster, files, summary }]`
-
-### `docs-searcher` — Haiku
-
-Takes one cluster from `docs-planner`. Searches `docs/` via MCP `doc_search_*` to find pages likely affected. Returns ranked paths with confidence scores.
-
-- **Tools:** `doc_search_text`, `doc_search_fuzzy`, `doc_outline` (requires `markdown-lsp` MCP)
-- **Returns:** `[{ path, reason, confidence }]`
-- **Without MCP:** falls back to `Grep`/`Read`, lower recall
-
-### `docs-editor` — Sonnet
-
-Takes drifted file paths + the original diff. Checks out a fresh `git worktree`, edits each `.md` to remove direct contradictions with the diff. Does not speculate.
-
-- **Tools:** `Read`, `Edit`, `Bash` (git worktree)
-- **Returns:** unified diff
-
-### `docs-curator` — Sonnet
-
-Receives all patches from parallel `docs-editor` runs in a fresh context. Resolves line conflicts, drops speculative or duplicate changes, produces a single commit-ready patch.
-
-- **Tools:** `Read`, `Edit`, `Bash`
-- **Returns:** final unified diff + suggested commit message
-
-### `docs-site-crawler` — Haiku
-
-Crawls a product URL into Markdown plus a `_branding.json` file. Used as stage 1 of `/docs-create`.
-
-- **Tools:** `Read`, `Write`, `Bash`, `WebFetch`
-
-### `docs-publisher` — Haiku
-
-`git init` + `gh repo create` + push over HTTPS. Stage 2 of `/docs-create`.
-
-- **Tools:** `Bash`, `Read`
-
-### `docs-workspace-configurator` — Sonnet
-
-Branding, UI, AI, SEO via Docsbook MCP. Stage 3 of `/docs-create`. Requires the `docsbook` MCP (HTTP, OAuth on first call).
-
-- **Tools:** `Read` + Docsbook MCP tools
-
----
-
 ## Uninstall
-
-Delete the files:
 
 ```bash
 rm .claude/agents/docs-{planner,searcher,editor,curator,site-crawler,publisher,workspace-configurator}.md
 ```
 
-Restore backups if you used `--force`:
+Restore backups if you did not use `--force`:
 
 ```bash
 for f in .claude/agents/docs-*.md.bak; do mv "$f" "${f%.bak}"; done
