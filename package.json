@@ -1,6 +1,6 @@
 {
   "name": "docs-subagents",
-  "version": "0.4.0",
+  "version": "0.4.1",
   "description": "11 Claude Code subagents organized into three pipelines: code↔docs drift detection (planner/searcher/editor/curator), workspace creation (site-crawler/publisher/workspace-configurator), and recurring analytics insights (analytics-collector/clusterer/reporter, insights-archivist).",
   "type": "module",
   "bin": {
@@ -16,7 +16,16 @@
     "README.md",
     "LICENSE"
   ],
-  "keywords": ["claude-code", "subagents", "docs", "drift", "markdown", "documentation", "ai", "agents"],
+  "keywords": [
+    "claude-code",
+    "subagents",
+    "docs",
+    "drift",
+    "markdown",
+    "documentation",
+    "ai",
+    "agents"
+  ],
   "author": "Dan Bondarev",
   "license": "MIT",
   "repository": {
@@ -24,5 +33,7 @@
     "url": "https://github.com/Docsbook-io/docs-subagents.git"
   },
   "homepage": "https://docsbook.io",
-  "engines": { "node": ">=20" }
+  "engines": {
+    "node": ">=20"
+  }
 }
