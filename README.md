@@ -127,7 +127,7 @@ Existing files are backed up to `<name>.md.bak` unless you pass `--force`.
 
 | Missing piece | Why | How to add |
 |---|---|---|
-| MCP server | `docs-searcher` needs `markdown-lsp` for LSP-quality search | [Add manually](#1-register-markdown-lsp-mcp) |
+| `markdown-lsp` CLI | `docs-searcher` uses `npx markdown-lsp` for doc-graph search | pre-installed via `npx` (no setup required) |
 | Pre-push git hook | Subagents only run when invoked | [Wire manually](#2-wire-a-pre-push-hook-optional) |
 | `/docs-sync` command | No orchestrator slash command in this package | Use [docs-claude-plugins](https://github.com/Docsbook-io/docs-claude-plugins) |
 
@@ -146,7 +146,7 @@ git diff
 docs-planner (Haiku)          — clusters the diff into named topics
    │
    ▼ (parallel fan-out per cluster)
-docs-searcher (Haiku)         — finds drifted doc pages via MCP
+docs-searcher (Haiku)         — finds drifted doc pages via markdown-lsp CLI
    │
    ▼
 docs-editor (Sonnet)          — patches each page in an isolated worktree
@@ -327,22 +327,23 @@ The diff is what makes the pipeline cron-friendly: a downstream actor agent typi
 
 If you want the standalone subagents to behave like the full plugin, add these three things manually.
 
-### 1. Register `markdown-lsp` MCP
+### 1. Install `markdown-lsp` CLI
 
-Add to `.mcp.json` at your repo root:
+`docs-searcher` calls `npx markdown-lsp` directly — no MCP registration needed. The CLI is auto-downloaded via `npx` on first use.
 
-```json
-{
-  "mcpServers": {
-    "markdown-lsp": {
-      "command": "npx",
-      "args": ["-y", "markdown-lsp-mcp", "--docs", "./docs"]
-    }
-  }
-}
+To pre-install globally (optional, faster startup):
+
+```bash
+npm install -g markdown-lsp
 ```
 
-Restart Claude Code. `docs-searcher` will now use `doc_search_*` tools instead of falling back to `Grep`.
+Or as a dev dependency in your repo:
+
+```bash
+npm install --save-dev markdown-lsp
+```
+
+`docs-searcher` will then call `npx markdown-lsp search-symbols ./docs <term>` and related subcommands.
 
 ### 2. Wire a Pre-push Hook (optional)
 
