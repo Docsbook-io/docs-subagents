@@ -61,7 +61,18 @@ Resolve the target path relative to the project root (the folder sits next to `d
    ```
    If a push is rejected because the remote moved ahead: `git pull --rebase origin main` once, then retry the push once. Never force-push.
 
-## Output — strict JSON, no prose, no fences
+## Output — strict JSON, no prose, no fences (hard contract, overrides everything above)
+
+Your ENTIRE final message MUST be exactly one JSON object and NOTHING else:
+- First character `{`, last character `}`. Nothing before it, nothing after it.
+- No preamble ("Here is…", "Sure,…"), no trailing summary, no sign-off, no commentary.
+- No Markdown and no code fences — do NOT wrap the object in ```json or ``` … ``` . Emit raw JSON only.
+- This is the whole reply even on failure: on error return the SAME shape with `"status":"error"` and the reason in a field — never prose.
+- Every documented key MUST be present in the output object. You MAY add extra keys, but the documented structure is mandatory.
+- You have NO out-of-band channel: everything you need to convey MUST fit inside this single JSON object.
+- Do NOT narrate your reasoning outside the object — your final turn is only the JSON object itself.
+
+Shapes:
 
 ```
 {"status":"ok","target":"docs-skills","committed":["skills/foo/SKILL.md"],"pushed":true,"released":true,"channel":"npm","version":"1.6.1","sha":"<short-sha>"}
