@@ -65,30 +65,22 @@ These two packages live side by side — they solve different problems.
 
 | I want… | Use |
 |---|---|
-| Full pre-push drift workflow, one command, no manual wiring | [docs-claude-plugins](https://github.com/Docsbook-io/docs-claude-plugins) |
-| Recurring analytics with schedule + Slack notifications, one setup wizard | [docs-claude-plugins](https://github.com/Docsbook-io/docs-claude-plugins) (`docs-insights` plugin) |
+| Full pre-push drift workflow, one command, no manual wiring | **docs-subagents** + [wire a pre-push hook](#2-wire-a-pre-push-hook-optional) with your own orchestrator |
+| Recurring analytics with schedule + Slack notifications | **docs-subagents** insights pipeline + your own scheduler/notifier |
 | Just the subagent files, manual invocation or custom pipeline | **docs-subagents** (this package) |
-| Agents for Cursor / Codex / Copilot (not Claude Code) | **docs-subagents** — the plugin is Claude Code only |
+| Agents for Cursor / Codex / Copilot (not Claude Code) | **docs-subagents** |
 
-### Standalone vs plugin versions
+### How subagents are shipped
 
-The same subagent name (e.g. `docs-planner`, `analytics-collector`) ships **both** here as a standalone `.md` file and inside the matching plugin in [docs-claude-plugins](https://github.com/Docsbook-io/docs-claude-plugins). The two versions are **intentionally not byte-identical**:
+Subagents (e.g. `docs-planner`, `analytics-collector`) ship exclusively through this npm package as standalone `.md` files. Install them with `npx docs-subagents install` and invoke them directly in Claude Code or wire them into your own orchestrator.
 
-|  | Standalone (this package) | Plugin version |
-|---|---|---|
-| **Audience** | Users who invoke agents manually or build their own orchestrator | Users running the plugin's bundled commands (`/docs-sync`, `/docs-insights`, …) |
-| **Prompt scope** | Minimal — no references to plugin commands or config files | Richer — may reference `.docsbook/insights/.config.json`, `/docs-insights-setup`, plugin-bundled MCP |
-| **Modes** | Single primary mode (the most common one) | May ship extra modes (e.g. `docs-planner` plugin version has both diff mode and intent mode) |
-| **Stability** | Treat the input/output contract as a stable API | Evolves with the plugin's feature surface |
-| **Release cadence** | npm `docs-subagents` package | Plugin version in `docs-claude-plugins` |
-
-What is **always shared** between the two versions of the same subagent:
+Each agent exposes a stable input/output contract:
 
 - The agent `name` in the YAML frontmatter.
 - The first-line output contract (e.g. `WROTE: <path>`, `CLUSTERED: <path>`, `REPORT_JSON: <path>`).
 - The slice / mode vocabulary (e.g. `utm`, `engagement`, `funnel`, …).
 
-This lets you swap one for the other within a pipeline without breaking anything. If both end up in `.claude/agents/` (e.g. you ran both `/plugin install` and `npx docs-subagents install`), the second install will back up the first — keep the version that matches how you actually invoke them.
+Treat this contract as a stable API — you can compose agents freely within a pipeline without worrying about breaking changes.
 
 ---
 
@@ -129,7 +121,7 @@ Existing files are backed up to `<name>.md.bak` unless you pass `--force`.
 |---|---|---|
 | `markdown-lsp` CLI | `docs-searcher` uses `npx markdown-lsp` for doc-graph search | pre-installed via `npx` (no setup required) |
 | Pre-push git hook | Subagents only run when invoked | [Wire manually](#2-wire-a-pre-push-hook-optional) |
-| `/docs-sync` command | No orchestrator slash command in this package | Use [docs-claude-plugins](https://github.com/Docsbook-io/docs-claude-plugins) |
+| `/docs-sync` command | No orchestrator slash command in this package | Write your own orchestrator (see [Wire a pre-push hook](#2-wire-a-pre-push-hook-optional)) |
 
 ---
 
@@ -192,9 +184,7 @@ analytics-reporter (Sonnet)         — emit schema-validated JSON + human Markd
 insights-archivist (Haiku)          — diff vs previous run, build index.json, rotate old reports
 ```
 
-Output lands under `.docsbook/insights/`. Every JSON validates against [`insight.schema.json`](https://github.com/Docsbook-io/docs-claude-plugins/blob/main/plugins/docs-insights/schemas/insight.schema.json) — the stable contract between analyzer agents and the future actor layer that will turn findings into PRs, Issues, and AI-chat updates.
-
-For one-command setup (workspace picker, OAuth, schedule, Slack notifications), use the [`docs-insights` plugin](https://github.com/Docsbook-io/docs-claude-plugins) — it ships the same four subagents plus a `/docs-insights-setup` wizard and individual shortcut commands.
+Output lands under `.docsbook/insights/`. Every JSON validates against `insight.schema.json` (schema version 1) — the stable contract between analyzer agents and the future actor layer that will turn findings into PRs, Issues, and AI-chat updates.
 
 ---
 
@@ -356,7 +346,7 @@ set -e
 claude --print --dangerously-skip-permissions /docs-sync || true
 ```
 
-> Note: this requires a `/docs-sync` slash command, which this package does not ship. Either write your own orchestrator, or use [docs-claude-plugins](https://github.com/Docsbook-io/docs-claude-plugins) which includes one.
+> Note: this requires a `/docs-sync` slash command, which this package does not ship. Write your own orchestrator that invokes the drift-detection pipeline agents in sequence.
 
 ### 3. Optional Config
 
