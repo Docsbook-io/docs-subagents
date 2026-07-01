@@ -1,6 +1,6 @@
 {
   "name": "docs-subagents",
-  "version": "0.4.4",
+  "version": "0.4.5",
   "description": "11 Claude Code subagents organized into three pipelines: code↔docs drift detection (planner/searcher/editor/curator), workspace creation (site-crawler/publisher/workspace-configurator), and recurring analytics insights (analytics-collector/clusterer/reporter, insights-archivist).",
   "type": "module",
   "bin": {
